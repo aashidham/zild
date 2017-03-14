@@ -40,6 +40,8 @@ var server = net.createServer(function(sock) {
 	sock0 = sock;
 }).listen('s');
 
+process.send("ready");
+
 var add_cb = function(proc_curr)
 {
 	proc_curr.on('error', print_out);
@@ -51,4 +53,4 @@ var add_cb = function(proc_curr)
 }
 
 //add_cb(spawn("bash",["-c","ping 8.8.8.8"]));
-add_cb(spawn("bash",["-c","node c2.js"]));
+add_cb(spawn("bash",["-c","node a2.js"]));
