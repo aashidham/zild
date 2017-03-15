@@ -7,13 +7,18 @@
 var fs = require('fs');
 var net = require('net');
 var spawn = require('child_process').spawn;
+
+var server = net.createServer(function(sock) {
+	sock0 = sock;
+}).listen('s');
+
 var buf = "";
 var sock0;
 
 var print_out = function(data)
 {
 	//console.log(data);
-	if(sock0)
+	if(sock0 && !sock0.destroyed)
 	{
 		if(buf.length) 
 		{
@@ -36,16 +41,8 @@ var write3 = function(data)
 
 }
 
-var server = net.createServer(function(sock) {
-	sock0 = sock;
-}).listen('s');
-
-process.send("ready");
-
 var add_cb = function(proc_curr)
 {
-	proc_curr.on('error', print_out);
-	proc_curr.on('close', print_out);
 	proc_curr.stdout.setEncoding('utf8');
 	proc_curr.stderr.setEncoding('utf8');
 	proc_curr.stdout.on('data', print_out);
@@ -54,3 +51,9 @@ var add_cb = function(proc_curr)
 
 //add_cb(spawn("bash",["-c","ping 8.8.8.8"]));
 add_cb(spawn("bash",["-c","node a2.js"]));
+
+var ON_DEATH = require('death');
+ON_DEATH(function(signal, err) {
+	server.close();
+	process.exit();
+});
