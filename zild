@@ -1,0 +1,86 @@
+#!/usr/bin/env node
+
+var path = require('path');
+var root_dir = require('os').homedir();
+var project_dir = path.join(root_dir,".zild");
+var fs = require('fs');
+var net = require('net');
+
+var program = require('commander');
+var Table = require('easy-table');
+var colors = require('colors/safe');
+//var Table = require('cli-table');
+
+program.version('0.1.1')
+
+program
+ 	.command('list')
+ 	.alias('ls')
+ 	.action(function(){
+ 		//console.log("ID\tCWD\tCMD")
+ 		var t = new Table
+ 		var ret = fs.readdirSync(project_dir)
+ 		.filter(file => fs.existsSync(path.join(project_dir, file, "config.json")))
+ 		.filter(file => fs.existsSync(path.join(project_dir, file, "s.sock")))
+ 		.map(file => get_json_config(file));
+ 		ret.forEach(function(product) {
+		  t.cell('ID', colors.green(product.id0))
+		  t.cell('CMD', colors.red("["+product.cwd+"]$ "+ product.bash_cmd))
+		  t.newRow()
+		})
+ 		//.map(j => console.log(j.id0+"\t"+j.cwd+"\t"+j.bash_cmd))
+ 		//console.log(t.print())
+
+ 		//console.table(['ID', 'CWD', 'CMD'],ret);
+ 		//console.log(ret);
+ 		//t.push(ret); 
+ 		console.log(t.toString());
+ 	});
+
+program
+	.command('attach <process_id>')
+	.alias('log')
+	.action(function(s){
+		var log_file = path.join(project_dir, s, "process.log");
+		var sock_file = path.join(project_dir, s, "s.sock");
+		//if(!fs.existsSync(log_file)) console.log("This process_id doesn't exist.")
+		if(fs.existsSync(sock_file)) 
+		{
+			var client = new net.Socket();
+			client.connect({path: sock_file});
+			client.on('error', function(err) {
+				console.log("Can't attach to this process")
+				process.exit(0);
+			});
+
+			client.on('data' ,function(data) {
+			    process.stdout.write(""+data);
+			});
+
+			process.stdin.on('data', function(chunk) {
+				process.exit(0);
+			});
+		}
+		else console.log("Running process not found");
+	});
+
+
+program
+  .command('*')
+  .action(function(env){
+    program.help();
+  });
+
+
+if(!process.argv.slice(2).length)
+{
+  program.help();
+}
+
+program.parse(process.argv);
+
+function get_json_config(id0)
+{
+	return JSON.parse(fs.readFileSync(path.join(project_dir, id0, "config.json")))
+}
+

@@ -5,6 +5,7 @@ var net = require('net');
 var fs = require('fs');
 var path = require('path');
 var root_dir = require('os').homedir();
+
 var utile = require('utile');
 var dockerNames = require('docker-names');
 
@@ -28,8 +29,7 @@ utile.mkdirp(project_dir, function(err){
 	{
 		setup_and_go();
 	}
-})
-
+});
 
 
 //child.stdout.on('data', console.log);
