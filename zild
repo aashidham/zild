@@ -9,25 +9,136 @@ var net = require('net');
 var program = require('commander');
 var Table = require('easy-table');
 var colors = require('colors/safe');
+var prompt = require('prompt');
+var request = require('request');
+var uuid = require('uuid/v4');
 //var Table = require('cli-table');
 
+function write_token(token)
+{
+	var config_file = path.join(project_dir, "globals.json");
+	if(fs.existsSync(config_file)){
+		var global_config = JSON.parse(fs.readFileSync(config_file));
+		global_config.token = token;
+		fs.writeFileSync(config_file, JSON.stringify(global_config));
+	}
+	else
+	{
+		var cmp_name = uuid();
+		var hostname = require('os').hostname();
+		fs.writeFileSync(config_file, JSON.stringify({token: token, cmp_name: cmp_name, hostname: hostname}));
+	}
+}
+
 program.version('0.1.1')
+
+//TODO: once you are logged out, your computer will get a new id, on new login is this OK?
+//probably not. renmove before publish.
+/*
+program.command('logout')
+	.action(function(s){
+		var config_file = path.join(project_dir, "globals.json");
+		if(fs.existsSync(config_file)) fs.unlinkSync(config_file);
+	})
+*/
+
+program
+	.command('register')
+	.action(function (s){
+		prompt.message = '';
+		prompt.delimiter = colors.white(":");	
+		prompt.get([{
+    		name: 'username',
+    		required: true,
+    		description: colors.white('username')
+  		}, { 
+  			name: 'password',
+    		hidden: true,
+    		description: colors.white('password'),
+    		required: true
+  		}, {
+  			name: 'password2',
+  			hidden: true, 
+  			description: colors.white('password (repeat)'),
+  			required: true
+  		}], function (err, result) {
+			  request.post( 'https://zild.io/register', 
+			  	{timeout: 1000, json: {username: result.username, pw1: result.password, pw2: result.password2}},
+			  	function(error, response, body)
+			  	{
+			  		if(!error){
+			  			console.log(body.msg);
+			  			if(body.token) write_token(body.token);
+			  		}
+			  		else {
+			  			if(error.code === 'ETIMEDOUT') console.log("Zild server down or taking a while to respond.");
+			  			else console.log(error);
+			  		}
+			  	});
+  		});
+  		prompt.start();
+	});
+
+
+
+program
+	.command('login')
+	.action(function (s){
+		prompt.message = '';
+		prompt.delimiter = colors.white(":");	
+		prompt.get([{
+    		name: 'username',
+    		required: true,
+    		description: colors.white('username')
+  		}, { 
+  			name: 'password',
+    		hidden: true,
+    		description: colors.white('password'),
+    		required: true
+  		}], function (err, result) {
+			  request.post( 'https://zild.io/login',
+			  	{timeout: 1000, json: {username: result.username, pw: result.password}},
+			  	function(error, response, body)
+			  	{
+			  		if(!error) {
+			  			console.log(body.msg);
+			  			if(body.token) write_token(body.token);
+			  		}
+			  		else {
+			  			if(error.code === 'ETIMEDOUT') console.log("Zild server down or taking a while to respond.");
+			  			else console.log(error);
+			  		}
+			  	});
+  		});
+  		prompt.start();
+	});
 
 program
  	.command('list')
  	.alias('ls')
  	.action(function(){
  		//console.log("ID\tCWD\tCMD")
+ 		console.log("begin");
  		var t = new Table
  		var ret = fs.readdirSync(project_dir)
  		.filter(file => fs.existsSync(path.join(project_dir, file, "config.json")))
  		.filter(file => fs.existsSync(path.join(project_dir, file, "s.sock")))
  		.map(file => get_json_config(file));
- 		ret.forEach(function(product) {
-		  t.cell('ID', colors.green(product.id0))
-		  t.cell('CMD', colors.red("["+product.cwd+"]$ "+ product.bash_cmd))
-		  t.newRow()
-		})
+ 		/*ret.forEach(function(product) {
+		});*/
+ 		writeRow(ret);
+ 		console.log("got ret");
+
+		function writeRow(products)
+		{
+		  if(products.length) {
+		  	  var product = products.shift();
+			  t.cell('ID', colors.green(product.id0));
+			  t.cell('CMD', colors.red("["+product.cwd+"]$ "+ product.bash_cmd));
+			  t.newRow();
+			  writeRow(products);
+		  }
+		}
  		//.map(j => console.log(j.id0+"\t"+j.cwd+"\t"+j.bash_cmd))
  		//console.log(t.print())
 
@@ -38,32 +149,93 @@ program
  	});
 
 program
+	.command('kill <process_id>')
+	.action(function(s){
+		var sock_file = path.join(project_dir, s, "s.sock");
+		create_client(sock_file, 'kill', true, function(d){
+			console.log(d);
+		});
+	});
+
+program
+	.command('live <process_id>')
+	.action(function(s){
+		var sock_file = path.join(project_dir, s, "s.sock");
+		var client = new net.Socket();
+		client.write("interactive");
+		process.stdin.setRawMode(true);
+		process.stdin.resume();
+		process.stdin.setEncoding('utf8');
+		process.stdout.setEncoding('utf8');
+		process.stdin.on('data', function(chunk) {
+			client.write(chunk);
+		});
+		client.on('data' ,function(data){
+			process.stdout.write(data);
+		});
+
+	})
+
+program
+	.command('ping <process_id>')
+	.action(function(s){
+		var sock_file = path.join(project_dir, s, "s.sock");
+		/*var client = new net.Socket();
+		client.connect({path: sock_file});
+		client.on('data' ,function(data) {console.log(""+data);});
+		client.write(JSON.stringify({ping:true})); */
+		create_client(sock_file, 'ping', true, function(d){
+			console.log(d);
+		})
+	});
+
+//put the send before the listen because we want to activate the log printout as soon as possible
+program
 	.command('attach <process_id>')
 	.alias('log')
 	.action(function(s){
 		var log_file = path.join(project_dir, s, "process.log");
 		var sock_file = path.join(project_dir, s, "s.sock");
 		//if(!fs.existsSync(log_file)) console.log("This process_id doesn't exist.")
-		if(fs.existsSync(sock_file)) 
-		{
+		//if(fs.existsSync(sock_file)) 
+		//{
 			var client = new net.Socket();
 			client.connect({path: sock_file});
 			client.on('error', function(err) {
-				console.log("Can't attach to this process")
+				console.log("Can't attach to this process: "+err.code);
+				//console.log(err);
 				process.exit(0);
 			});
 
 			client.on('data' ,function(data) {
-			    process.stdout.write(""+data);
+			    process.stdout.write(""+JSON.parse(data).data);
 			});
 
 			process.stdin.on('data', function(chunk) {
 				process.exit(0);
 			});
-		}
-		else console.log("Running process not found");
+		//}
+		//else console.log("Running process not found");
 	});
 
+//put the listen before the send because we want to capture the first bytes of data
+function create_client(sock_file, key0, val0 ,cb)
+{
+	var client = new net.Socket();
+	client.on('error', function(err) {
+		console.log("Can't attach to this process: "+err.code);
+		//console.log(err);
+		process.exit(0);
+	});
+
+	client.connect({path: sock_file});
+	client.write(" "); //quiet the print statements
+	client.on('data' ,function(data){
+		cb(""+data);
+		client.destroy();
+	});
+	client.write(JSON.stringify({[key0]:val0})); //invoke the request AFTER the listener
+}
 
 program
   .command('*')

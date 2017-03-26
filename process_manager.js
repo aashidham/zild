@@ -21,6 +21,26 @@ var uuid = require('uuid/v4');
 var id0 = process.argv[2];
 var project_dir = path.join(root_dir,".zild", id0);
 
+function msToTime(duration_s) {
+		var duration = duration_s * 1000;
+        var milliseconds = parseInt((duration%1000)/100)
+            , seconds = parseInt((duration/1000)%60)
+            , minutes = parseInt((duration/(1000*60))%60)
+            , hours = parseInt((duration/(1000*60*60))%24);
+
+        hours = (hours < 10) ? "0" + hours : hours;
+        minutes = (minutes < 10) ? "0" + minutes : minutes;
+        seconds = (seconds < 10) ? "0" + seconds : seconds;
+
+        return hours + "h:" + minutes + "m:" + seconds + "." + milliseconds;
+    }
+
+function string_is_json(s)
+{
+	try{JSON.parse(s); return true;}
+	catch(e){return false;}
+}
+
 var global_config_path = path.join(root_dir,".zild", "globals.json");
 var project_config_path = path.join(project_dir,"config.json");
 if(!fs.existsSync(project_config_path)) 
@@ -36,6 +56,7 @@ project_config.token = global_config.token;
 project_config.hostname = global_config.hostname;
 project_config.cmp_name = global_config.cmp_name;
 var child_dead = false;
+var child;
 
 
 var sock_file = path.join(project_dir, "s.sock");
@@ -54,13 +75,27 @@ ON_DEATH(function(signal, err) {
 	graceful_close("from procmon death");
 });
 
-var sock_arr = [];
+//var sock_arr = [];
 var server = net.createServer(function(sock) {
 	//sock.write("\n");
+	var sock_log = true;
+	var sock_interactive = false;
 	sock.on('data', function(d){
-		if((JSON.parse(d)).ping) sock.write(JSON.stringify({'pong':uuid()}));
+		sock_log = false;
+		if(string_is_json(d))
+		{
+			if((JSON.parse(d)).ping) sock.write(JSON.stringify({ping:uuid()}));
+			else if((JSON.parse(d)).pid) sock.write(JSON.stringify({pid:project_config.pid}));
+			else if((JSON.parse(d)).kill) graceful_close("from UDS server");
+		}
 	});
-	sock_arr.push(sock);
+
+	post_events.on("print", function(d){
+		if(sock_log && sock.writable) sock.write(JSON.stringify({data:d}));
+	});		
+
+
+	//sock_arr.push(sock);
 }).listen(sock_file);
 
 
@@ -84,17 +119,20 @@ fs.watch(project_dir, (eventType, filename) => {
 var print_out = function(data)
 {
 	var data = ""+data;
+	post_events.emit("print", data);
 	//log to STDOUT will be ignored by z, but if this is run directly, can be viewed for debugging purposes
 	console.log(data);
+	/*
 	for (var i = 0, len = sock_arr.length; i < len; i++) {
 		var sock0 = sock_arr[i];
 		//TODO: figure out if I need sock0.writable if I can catch the error in the if block, uncomment epipe.d for this
 		if(sock0 && sock0.writable)
 		{
 			sock0.write(data);
-			sock0.on('error', function(e) {console.log(e); /*fs.writeFileSync("epipe.d", e);*/})
+			sock0.on('error', function(e) {console.log(e); fs.writeFileSync("epipe.d", e);})
 		}		
 	}
+	*/
 }
 
 
@@ -210,4 +248,5 @@ function events_intersect(ev1, ev2, ee, f0)
 }
 
 //add_cb(spawn("bash",["-c","ping 8.8.8.8"]));
-add_cb(spawn2( process.env.SHELL || "bash",["-c",project_config.bash_cmd], {cwd: project_config.cwd } ));
+child = spawn2( process.env.SHELL || "bash",["-c",project_config.bash_cmd], {cwd: project_config.cwd } );
+add_cb(child);
