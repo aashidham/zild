@@ -52,6 +52,8 @@ if(!fs.existsSync(project_config_path))
 
 var project_config = JSON.parse(fs.readFileSync(project_config_path));
 var global_config = JSON.parse(fs.readFileSync(global_config_path));
+
+//truncate file if already exists
 var fd_log = fs.openSync(project_log_path,'w');
 fs.closeSync(fd_log);
 
@@ -59,6 +61,7 @@ project_config.token = global_config.token;
 project_config.hostname = global_config.hostname;
 project_config.cmp_name = global_config.cmp_name;
 var child_dead = false;
+var close_code = " ";
 var child;
 
 
@@ -67,10 +70,41 @@ var quit_ref_count = 0;
 var data_lines_count = 0;
 
 //listeners
+function events_intersect(ev1, ev2, ee, f0)
+{
+	ee.on(ev1, function() { 
+		ee.on(ev2, function() { 
+			//console.log(ev1 +" then "+ev2); 
+			f0(); 
+		}); 
+	});
+
+	ee.on(ev2, function() { 
+		ee.on(ev1, function() { 
+			//console.log(ev2 +" then "+ev1); 
+			f0(); 
+		}); 
+	});
+}
+
 events_intersect("post_response_done", "self_done", post_events, function() {
 	//console.log("PRD "+quit_ref_count); 
 	if(quit_ref_count < 1) process.exit();
+});
+
+events_intersect("start_done", "process_closed", post_events, function(){
+	request.post( 'https://zild.io/stop_process', {json: {token: project_config.token, close_code: close_code, process_id: project_config.process_id}}, 
+		function(e,r,b){
+			if(e) {console.log(e); }
+			quit_ref_count--;
+			console.log("stop_process result");
+			console.log(b);
+			console.log("would have killed procmon here");
+			server.close(); 
+			post_events.emit("post_response_done");
+		});			
 })
+
 
 //death listener has to come before server so that it can close the server if process is dying
 //TODO: is this right?
@@ -195,6 +229,7 @@ var add_cb = function(proc_curr)
 			console.log("start_process result");
 			console.log(b);
 			post_events.emit("post_response_done");
+			post_events.emit("start_done");
 		});
 
 	proc_curr.stderr.on('data', write3_stderr); 
@@ -203,25 +238,15 @@ var add_cb = function(proc_curr)
 	//otherwise the server prevents natural closing
 	proc_curr.on('error', function(e) { print_out(e); graceful_close("from process error"); });
 	proc_curr.on('close', function(code, signal) { 
-		var close_code = " ";
 		child_dead = true;
 		if(code) close_code = close_code + " " +code;
 		if(signal) close_code = close_code + " " +signal;
 		quit_ref_count++;
-		request.post( 'https://zild.io/stop_process', {json: {token: project_config.token, close_code: close_code, process_id: project_config.process_id}}, 
-			function(e,r,b){
-				if(e) {console.log(e); }
-				quit_ref_count--;
-				console.log("stop_process result");
-				console.log(b);
-				post_events.emit("post_response_done");
-			});
 		if(code !== 0) {
 			if(!signal) print_out("Process closed with code "+code+"\n");	
 			else print_out("Process closed with code "+code+" and signal "+signal+"\n");	
 		} 
-		server.close(); 
-		post_events.emit("self_done");
+		post_events.emit("process_closed");
 	})
 }
 
@@ -234,23 +259,6 @@ function graceful_close(msg)
 	if(project_config.pid && !child_dead) { console.log(msg+": found process is not dead yet, so killing it"); process.kill(project_config.pid, 'SIGKILL'); }
 	//process has been killed
 	else console.log(msg+": found process is dead, so doing nothing");
-}
-
-function events_intersect(ev1, ev2, ee, f0)
-{
-	ee.on(ev1, function() { 
-		ee.on(ev2, function() { 
-			//console.log(ev1 +" then "+ev2); 
-			f0(); 
-		}); 
-	});
-
-	ee.on(ev2, function() { 
-		ee.on(ev1, function() { 
-			//console.log(ev2 +" then "+ev1); 
-			f0(); 
-		}); 
-	});
 }
 
 //add_cb(spawn("bash",["-c","ping 8.8.8.8"]));
