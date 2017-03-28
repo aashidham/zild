@@ -11,7 +11,7 @@ var path = require('path');
 var events = require('events')
 var post_events = new events();
 
-var root_dir = require('os').homedir();
+var root_dir = process.env.ZILD_ROOT || require('os').homedir();
 
 var spawn2 = require('child_pty').spawn;
 var ON_DEATH = require('death');
@@ -43,6 +43,7 @@ function string_is_json(s)
 
 var global_config_path = path.join(root_dir,".zild", "globals.json");
 var project_config_path = path.join(project_dir,"config.json");
+var project_log_path = path.join(project_dir, "current.log");
 if(!fs.existsSync(project_config_path)) 
 {
 	console.log("Incorrect process ID, called with a process that doesn't exist");
@@ -51,6 +52,8 @@ if(!fs.existsSync(project_config_path))
 
 var project_config = JSON.parse(fs.readFileSync(project_config_path));
 var global_config = JSON.parse(fs.readFileSync(global_config_path));
+var fd_log = fs.openSync(project_log_path,'w');
+fs.closeSync(fd_log);
 
 project_config.token = global_config.token;
 project_config.hostname = global_config.hostname;
@@ -84,7 +87,7 @@ var server = net.createServer(function(sock) {
 		sock_log = false;
 		if(string_is_json(d))
 		{
-			if((JSON.parse(d)).ping) sock.write(JSON.stringify({ping:uuid()}));
+			if((JSON.parse(d)).ping) sock.write(JSON.stringify({ping:true}));
 			else if((JSON.parse(d)).pid) sock.write(JSON.stringify({pid:project_config.pid}));
 			else if((JSON.parse(d)).kill) graceful_close("from UDS server");
 		}
@@ -122,6 +125,8 @@ var print_out = function(data)
 	post_events.emit("print", data);
 	//log to STDOUT will be ignored by z, but if this is run directly, can be viewed for debugging purposes
 	console.log(data);
+	
+
 	/*
 	for (var i = 0, len = sock_arr.length; i < len; i++) {
 		var sock0 = sock_arr[i];
@@ -140,7 +145,7 @@ var write3_common = function(data, stderr)
 {
 	var data = ""+data;
 	data_lines_count++;
-	var send_obj = JSON.parse(JSON.stringify(project_config));
+	var send_obj = JSON.parse(JSON.stringify(project_config)); //need to make a deep copy of project_config
 	send_obj.data = data;
 	send_obj.data_chunk = data_lines_count;
 	send_obj.stderr = stderr;
@@ -154,6 +159,7 @@ var write3_common = function(data, stderr)
 			//console.log(b);
 			post_events.emit("post_response_done");
 		});
+	fs.appendFileSync(project_log_path, data);
 	print_out(data);
 }
 
