@@ -66,7 +66,6 @@ var child;
 
 
 var sock_file = path.join(project_dir, "s.sock");
-var quit_ref_count = 0;
 var data_lines_count = 0;
 
 //listeners
@@ -87,21 +86,18 @@ function events_intersect(ev1, ev2, ee, f0)
 	});
 }
 
-events_intersect("post_response_done", "self_done", post_events, function() {
-	//console.log("PRD "+quit_ref_count); 
-	if(quit_ref_count < 1) process.exit();
-});
 
 events_intersect("start_done", "process_closed", post_events, function(){
+	console.log("about to call stop_process");
 	request.post( 'https://zild.io/stop_process', {json: {token: project_config.token, close_code: close_code, process_id: project_config.process_id}}, 
 		function(e,r,b){
+			console.log("from stop_process result");
 			if(e) {console.log(e); }
-			quit_ref_count--;
 			console.log("stop_process result");
 			console.log(b);
 			console.log("would have killed procmon here");
 			server.close(); 
-			post_events.emit("post_response_done");
+			process.exit();
 		});			
 })
 
@@ -158,7 +154,7 @@ var print_out = function(data)
 	var data = ""+data;
 	post_events.emit("print", data);
 	//log to STDOUT will be ignored by z, but if this is run directly, can be viewed for debugging purposes
-	console.log(data);
+	//console.log(data);
 	
 
 	/*
@@ -183,15 +179,12 @@ var write3_common = function(data, stderr)
 	send_obj.data = data;
 	send_obj.data_chunk = data_lines_count;
 	send_obj.stderr = stderr;
-	console.log(send_obj);
-	quit_ref_count++;
+	//console.log(send_obj);
 	request.post( 'https://zild.io/shell_data', {json: send_obj}, 
 		function(e,r,b){
-			if(e) {console.log(e); }
-			quit_ref_count--;
+			if(e) { console.log("shell_data error"); console.log(e); }
 			//console.log("shell_data result");
 			//console.log(b);
-			post_events.emit("post_response_done");
 		});
 	fs.appendFileSync(project_log_path, data);
 	print_out(data);
@@ -219,16 +212,13 @@ var add_cb = function(proc_curr)
 	print_out(proc_curr.pty.columns); //80
 	print_out(proc_curr.pty.rows); //24
 
-	quit_ref_count++;
 	console.log("start_process project_config");
 	console.log(project_config);
 	request.post( 'https://zild.io/start_process', {json: project_config}, 
 		function(e,r,b){
 			if(e) {console.log(e); }
-			quit_ref_count--;
 			console.log("start_process result");
 			console.log(b);
-			post_events.emit("post_response_done");
 			post_events.emit("start_done");
 		});
 
@@ -238,23 +228,23 @@ var add_cb = function(proc_curr)
 	//otherwise the server prevents natural closing
 	proc_curr.on('error', function(e) { print_out(e); graceful_close("from process error"); });
 	proc_curr.on('close', function(code, signal) { 
+		console.log("inside close cb");
 		child_dead = true;
 		if(code) close_code = close_code + " " +code;
 		if(signal) close_code = close_code + " " +signal;
-		quit_ref_count++;
-		if(code !== 0) {
-			if(!signal) print_out("Process closed with code "+code+"\n");	
-			else print_out("Process closed with code "+code+" and signal "+signal+"\n");	
+		if(close_code && close_code !== " ") {
+			print_out("Process closed with code "+code+" and signal "+signal+"\n");	
 		} 
 		post_events.emit("process_closed");
+
 	})
 }
 
 function graceful_close(msg)
 {
 	//process has never started and since post calls are made after pid is set, we also know no post calls are made
-	//TODO: try to trigger this, is emitting self_done right? or must kill self immediately?
-	if(!project_config.pid) { console.log(msg+": found process was never started killing self immediately"); post_events.emit("self_done"); }
+	//TODO: try to trigger this, is this right?
+	if(!project_config.pid) { console.log(msg+": found process was never started killing self immediately"); server.close(); process.exit(); }
 	//process has been started but not killed
 	if(project_config.pid && !child_dead) { console.log(msg+": found process is not dead yet, so killing it"); process.kill(project_config.pid, 'SIGKILL'); }
 	//process has been killed
