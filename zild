@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 var path = require('path');
-var root_dir = require('os').homedir();
+var root_dir = process.env.ZILD_ROOT || require('os').homedir();
 var project_dir = path.join(root_dir,".zild");
 var fs = require('fs');
 var net = require('net');
@@ -41,6 +41,25 @@ program.command('logout')
 		if(fs.existsSync(config_file)) fs.unlinkSync(config_file);
 	})
 */
+
+program
+	.command('whoami')
+	.action(function(){
+		var config_file = path.join(project_dir, "globals.json");
+		if(fs.existsSync(config_file)){
+			var global_config = JSON.parse(fs.readFileSync(config_file));
+			if(global_config.token)
+			{
+				request.post( 'https://zild.io/whoami', {timeout: 1500, json: {token: global_config.token}}, function(e,r,b){
+					if(!e) console.log(b.msg);
+					else {
+						if(e.code === 'ETIMEDOUT') console.log("Zild server down or taking a while to respond.");
+			  			else console.log(e);
+			  		}
+				});	
+			}
+		}
+	});
 
 program
 	.command('register')
@@ -116,27 +135,47 @@ program
 program
  	.command('list')
  	.alias('ls')
- 	.action(function(){
+ 	.option("-a,  --all", "Include closed / stopped processes in list")
+ 	.action(function(is_all){
  		//console.log("ID\tCWD\tCMD")
- 		console.log("begin");
+ 		//console.log("begin");
  		var t = new Table
  		var ret = fs.readdirSync(project_dir)
  		.filter(file => fs.existsSync(path.join(project_dir, file, "config.json")))
- 		.filter(file => fs.existsSync(path.join(project_dir, file, "s.sock")))
- 		.map(file => get_json_config(file));
+ 		//.filter(file => fs.existsSync(path.join(project_dir, file, "s.sock")))
+ 		.sort(function compare(a, b){
+ 			var config_a = get_json_config(a);
+ 			var config_b = get_json_config(b);
+ 			var ret_val = config_a.start_time - config_b.start_time;
+ 			//console.log(ret_val);
+ 			return ret_val;
+ 		})
+ 		if(!is_all.all) 
+ 		{
+ 			ret = ret.filter(file => fs.existsSync(path.join(project_dir, file, "s.sock")));
+ 		}
+ 		ret = ret.map(file => get_json_config(file));
  		/*ret.forEach(function(product) {
 		});*/
  		writeRow(ret);
- 		console.log("got ret");
+ 		//console.log("got ret");
 
 		function writeRow(products)
 		{
 		  if(products.length) {
 		  	  var product = products.shift();
 			  t.cell('ID', colors.green(product.id0));
-			  t.cell('CMD', colors.red("["+product.cwd+"]$ "+ product.bash_cmd));
+			  //t.cell('CMD', colors.red("["+product.cwd+"]$ "+ product.bash_cmd));
+			  t.cell('CMD', colors.red(product.bash_cmd));
+			  t.cell('START',product.start_time);
 			  t.newRow();
 			  writeRow(products);
+			  /*var sock_file = path.join(project_dir, product.id0, "s.sock");
+			  create_client(sock_file, 'pid', true, function(d){
+				t.cell('PID', d)
+				t.newRow();
+			  	writeRow(products);
+			  });*/
 		  }
 		}
  		//.map(j => console.log(j.id0+"\t"+j.cwd+"\t"+j.bash_cmd))
@@ -148,6 +187,17 @@ program
  		console.log(t.toString());
  	});
 
+
+program
+	.command('pid <process_id>')
+	.action(function(s){
+		var sock_file = path.join(project_dir, s, "s.sock");
+		create_client(sock_file, 'pid', true, function(d){
+			console.log(d);
+		});
+	});
+
+
 program
 	.command('kill <process_id>')
 	.action(function(s){
@@ -156,25 +206,6 @@ program
 			console.log(d);
 		});
 	});
-
-program
-	.command('live <process_id>')
-	.action(function(s){
-		var sock_file = path.join(project_dir, s, "s.sock");
-		var client = new net.Socket();
-		client.write("interactive");
-		process.stdin.setRawMode(true);
-		process.stdin.resume();
-		process.stdin.setEncoding('utf8');
-		process.stdout.setEncoding('utf8');
-		process.stdin.on('data', function(chunk) {
-			client.write(chunk);
-		});
-		client.on('data' ,function(data){
-			process.stdout.write(data);
-		});
-
-	})
 
 program
 	.command('ping <process_id>')
@@ -189,10 +220,16 @@ program
 		})
 	});
 
+program
+	.command('log <process_id>')
+	.action(function(s){
+		var log_file = path.join(project_dir, s, "current.log");
+		fs.createReadStream(log_file).pipe(process.stdout);
+	});
+
 //put the send before the listen because we want to activate the log printout as soon as possible
 program
 	.command('attach <process_id>')
-	.alias('log')
 	.action(function(s){
 		var log_file = path.join(project_dir, s, "process.log");
 		var sock_file = path.join(project_dir, s, "s.sock");
@@ -200,6 +237,11 @@ program
 		//if(fs.existsSync(sock_file)) 
 		//{
 			var client = new net.Socket();
+
+			client.on('data' ,function(data) {
+			    if(JSON.parse(data).data) process.stdout.write(""+JSON.parse(data).data);
+			});
+
 			client.connect({path: sock_file});
 			client.on('error', function(err) {
 				console.log("Can't attach to this process: "+err.code);
@@ -207,10 +249,8 @@ program
 				process.exit(0);
 			});
 
-			client.on('data' ,function(data) {
-			    process.stdout.write(""+JSON.parse(data).data);
-			});
-
+			process.stdin.setRawMode(true);
+			process.stdin.resume();
 			process.stdin.on('data', function(chunk) {
 				process.exit(0);
 			});

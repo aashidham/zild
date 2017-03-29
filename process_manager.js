@@ -123,8 +123,13 @@ var server = net.createServer(function(sock) {
 		}
 	});
 
+
 	post_events.on("print", function(d){
+		//console.log("about to send out "+d.length);
 		if(sock_log && sock.writable) sock.write(JSON.stringify({data:d}));
+		sock.on('error', function(e) {console.log("from epipe"); console.log(e); console.log(d);})
+		//TODO:
+		//putting sock.on('error') here is bad because it adds a listener each time data is called (memory leak)
 	});		
 
 
