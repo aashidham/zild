@@ -12,6 +12,7 @@ var colors = require('colors/safe');
 var prompt = require('prompt');
 var request = require('request');
 var uuid = require('uuid/v4');
+var nssocket = require('nssocket');
 //var Table = require('cli-table');
 
 function write_token(token)
@@ -231,50 +232,42 @@ program
 program
 	.command('attach <process_id>')
 	.action(function(s){
-		var log_file = path.join(project_dir, s, "process.log");
 		var sock_file = path.join(project_dir, s, "s.sock");
-		//if(!fs.existsSync(log_file)) console.log("This process_id doesn't exist.")
-		//if(fs.existsSync(sock_file)) 
-		//{
-			var client = new net.Socket();
 
-			client.on('data' ,function(data) {
-			    if(JSON.parse(data).data) process.stdout.write(""+JSON.parse(data).data);
-			});
+		var client = new nssocket.NsSocket();
+		client.connect(sock_file);
+		client.on('error', function(err) {
+			//console.log("caught "+err);
+			console.log("Can't attach to this process: "+err.code);
+			process.exit();
+		});
+		client.data('log' ,function(data) {
+			process.stdout.write(data);
+		});
 
-			client.connect({path: sock_file});
-			client.on('error', function(err) {
-				console.log("Can't attach to this process: "+err.code);
-				//console.log(err);
-				process.exit(0);
-			});
-
-			process.stdin.setRawMode(true);
-			process.stdin.resume();
-			process.stdin.on('data', function(chunk) {
-				process.exit(0);
-			});
-		//}
-		//else console.log("Running process not found");
+		process.stdin.setRawMode(true);
+		process.stdin.resume();
+		process.stdin.on('data', function(chunk) {
+			process.exit(0);
+		});
 	});
 
 //put the listen before the send because we want to capture the first bytes of data
 function create_client(sock_file, key0, val0 ,cb)
 {
-	var client = new net.Socket();
+	var client = new nssocket.NsSocket();
 	client.on('error', function(err) {
 		console.log("Can't attach to this process: "+err.code);
-		//console.log(err);
-		process.exit(0);
+		console.log(err);
+		process.exit();
 	});
 
-	client.connect({path: sock_file});
-	client.write(" "); //quiet the print statements
-	client.on('data' ,function(data){
-		cb(""+data);
+	client.connect(sock_file);
+	client.data( key0 ,function(data){
+		cb(data);
 		client.destroy();
 	});
-	client.write(JSON.stringify({[key0]:val0})); //invoke the request AFTER the listener
+	client.send(key0,val0); //invoke the request AFTER the listener
 }
 
 program

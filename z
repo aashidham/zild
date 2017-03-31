@@ -10,6 +10,7 @@ var utile = require('utile');
 var dockerNames = require('docker-names');
 var colors = require('colors/safe');
 var request = require('request');
+var nssocket = require('nssocket');
 
 //var child = spawn('bash', ['-c', 'python multi.py'] , {detached: true, cwd: require('os').homedir(), stdio: 'ignore'});
 var curr_time = new Date().getTime();
@@ -132,21 +133,20 @@ var setup_and_go = function()
 	process.stdin.resume();
 	process.stdin.on('data', function(chunk) {
 		//child.disconnect();
-		console.log(colors.green("[[ ✓ Process "+(parseInt(child.pid)+1)+" detached! Run 'zild attach "+project_config.id0+"' to reattach to it.]]"));
+		console.log(colors.green("\r\n[[ ✓ Process "+(parseInt(child.pid)+1)+" detached! Run 'zild attach "+project_config.id0+"' to reattach to it.]]"));
 		process.exit(0);
 	});
 
 }
 
 if(!process.env.ZILD_IMMEDIATE_DETACH) {
-	var client = new net.Socket();
-	client.connect({path: sock_file});
+	var client = new nssocket.NsSocket();
+	client.connect(sock_file);
 	client.on('error', function(err) {
 		//console.log("caught "+err);
-		client.connect({path: sock_file});
+		client.connect(sock_file);
 	});
-	client.on('data' ,function(data) {
-		process.stdout.write(data+"\n");
-	    process.stdout.write(""+JSON.parse(data).data+"\n");
+	client.data('log' ,function(data) {
+		process.stdout.write(data);
 	});
 }

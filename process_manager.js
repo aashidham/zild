@@ -16,6 +16,7 @@ var root_dir = process.env.ZILD_ROOT || require('os').homedir();
 var spawn2 = require('child_pty').spawn;
 var ON_DEATH = require('death');
 var request = require('request');
+var nssocket = require('nssocket');
 var uuid = require('uuid/v4');
 
 var id0 = process.argv[2];
@@ -109,25 +110,33 @@ ON_DEATH(function(signal, err) {
 });
 
 //var sock_arr = [];
-var server = net.createServer(function(sock) {
-	//sock.write("\n");
-	var sock_log = true;
-	var sock_interactive = false;
-	sock.on('data', function(d){
-		sock_log = false;
-		if(string_is_json(d))
-		{
-			if((JSON.parse(d)).ping) sock.write(JSON.stringify({ping:true}));
-			else if((JSON.parse(d)).pid) sock.write(JSON.stringify({pid:project_config.pid}));
-			else if((JSON.parse(d)).kill) graceful_close("from UDS server");
-		}
+var server = nssocket.createServer(function(sock) {
+
+	sock.data('ping', function(){
+		sock.send('ping', { pong: (new Date()).toLocaleString() });
 	});
+
+	sock.data('pid', function(){
+		sock.send('pid', project_config.pid);
+	});
+
+	sock.data('kill', function(){
+		graceful_close("from UDS server");
+	});
+
+	var d_curr;
+	sock.on('error', function(e) {console.log("from epipe"); console.log(e); console.log(d_curr);})
 
 
 	post_events.on("print", function(d){
 		//console.log("about to send out "+d.length);
-		if(sock_log && sock.writable) sock.write(JSON.stringify({data:d}));
-		sock.on('error', function(e) {console.log("from epipe"); console.log(e); console.log(d);})
+		d_curr = d;
+		if(sock.connected)
+		{
+			sock.send('log', d);	
+		}
+		//if(sock_log && sock.writable) sock.write(JSON.stringify({data:d}));
+		
 		//TODO:
 		//putting sock.on('error') here is bad because it adds a listener each time data is called (memory leak)
 	});		
