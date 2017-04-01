@@ -20,9 +20,14 @@ var nssocket = require('nssocket');
 var uuid = require('uuid/v4');
 
 var id0 = process.argv[2];
-var project_dir = path.join(root_dir,".zild", id0);
 
-function msToTime(duration_s) {
+var pkg_file_name = path.join(__dirname,"package.json");
+var version_raw = JSON.parse(fs.readFileSync(pkg_file_name)).version;
+var version = "v"+version_raw.replace(/[^a-zA-z0-9]/g,"");
+
+var project_dir = path.join(root_dir , ".zild" , version , id0);
+
+function sToTime(duration_s) {
 		var duration = duration_s * 1000;
         var milliseconds = parseInt((duration%1000)/100)
             , seconds = parseInt((duration/1000)%60)
@@ -42,7 +47,7 @@ function string_is_json(s)
 	catch(e){return false;}
 }
 
-var global_config_path = path.join(root_dir,".zild", "globals.json");
+var global_config_path = path.join(root_dir,".zild", version, "globals.json");
 var project_config_path = path.join(project_dir,"config.json");
 var project_log_path = path.join(project_dir, "current.log");
 if(!fs.existsSync(project_config_path)) 
@@ -123,6 +128,10 @@ var server = nssocket.createServer(function(sock) {
 	sock.data('kill', function(){
 		graceful_close("from UDS server");
 	});
+
+	sock.data('uptime', function(){
+		sock.send('uptime', sToTime(process.uptime()));
+	})
 
 	var d_curr;
 	sock.on('error', function(e) {console.log("from epipe"); console.log(e); console.log(d_curr);})

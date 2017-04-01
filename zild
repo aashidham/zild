@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 
 var path = require('path');
-var root_dir = process.env.ZILD_ROOT || require('os').homedir();
-var project_dir = path.join(root_dir,".zild");
 var fs = require('fs');
+var root_dir = process.env.ZILD_ROOT || require('os').homedir();
+
+var pkg_file_name = path.join(__dirname,"package.json");
+var version_raw = JSON.parse(fs.readFileSync(pkg_file_name)).version;
+var version = "v"+version_raw.replace(/[^a-zA-z0-9]/g,"");
+
+var project_dir = path.join(root_dir,".zild", version);
 var net = require('net');
 
 var program = require('commander');
@@ -13,6 +18,7 @@ var prompt = require('prompt');
 var request = require('request');
 var uuid = require('uuid/v4');
 var nssocket = require('nssocket');
+var utile = require('utile');
 //var Table = require('cli-table');
 
 function write_token(token)
@@ -27,11 +33,14 @@ function write_token(token)
 	{
 		var cmp_name = uuid();
 		var hostname = require('os').hostname();
-		fs.writeFileSync(config_file, JSON.stringify({token: token, cmp_name: cmp_name, hostname: hostname}));
+		utile.mkdirp(project_dir, function(err){
+			if(err) { console.error(err); process.exit(); }
+			fs.writeFileSync(config_file, JSON.stringify({token: token, cmp_name: cmp_name, hostname: hostname}));
+		});
 	}
 }
 
-program.version('0.1.1')
+program.version(version_raw)
 
 //TODO: once you are logged out, your computer will get a new id, on new login is this OK?
 //probably not. renmove before publish.
@@ -42,6 +51,13 @@ program.command('logout')
 		if(fs.existsSync(config_file)) fs.unlinkSync(config_file);
 	})
 */
+
+program
+	.command('dev')
+	.action(function(){
+		//console.log(process.cwd());
+		console.log(version);
+	})
 
 program
 	.command('whoami')
@@ -147,7 +163,7 @@ program
  		.sort(function compare(a, b){
  			var config_a = get_json_config(a);
  			var config_b = get_json_config(b);
- 			var ret_val = config_a.start_time - config_b.start_time;
+ 			var ret_val = config_b.start_time - config_a.start_time;
  			//console.log(ret_val);
  			return ret_val;
  		})
@@ -165,19 +181,36 @@ program
 		{
 		  if(products.length) {
 		  	  var product = products.shift();
-			  t.cell('ID', colors.green(product.id0));
+			  t.cell('zild id', colors.green(product.id0));
 			  //t.cell('CMD', colors.red("["+product.cwd+"]$ "+ product.bash_cmd));
-			  t.cell('CMD', colors.red(product.bash_cmd));
-			  t.cell('START',product.start_time);
-			  t.newRow();
-			  writeRow(products);
-			  /*var sock_file = path.join(project_dir, product.id0, "s.sock");
-			  create_client(sock_file, 'pid', true, function(d){
-				t.cell('PID', d)
-				t.newRow();
-			  	writeRow(products);
-			  });*/
+			  t.cell('shell command', colors.red(product.bash_cmd));
+			  //(new Date(product.start_time)).toLocaleString()
+			  t.cell('start time', (new Date(product.start_time)).toLocaleString());
+			  //t.newRow();
+			  //writeRow(products);
+			  var sock_file = path.join(project_dir, product.id0, "s.sock");
+			  create_client(sock_file, 'pid', true, function(e,d){
+			  	if(e) t.cell('pid', '--')
+			  	else t.cell('pid', d)
+
+			  	create_client(sock_file, 'uptime', true, function(e,d){
+			  		if(e) t.cell('uptime', '--')
+			  		else  t.cell('uptime', d)
+
+			  		t.newRow();
+			  		writeRow(products);
+
+			  	});
+			  	//if(e) console.log("-");
+			  	//else console.log(d);
+
+				//t.newRow();
+				//console.log(t);
+				//console.log(products);
+			  	//writeRow(products);
+			  });
 		  }
+		  else console.log(t.toString());
 		}
  		//.map(j => console.log(j.id0+"\t"+j.cwd+"\t"+j.bash_cmd))
  		//console.log(t.print())
@@ -185,7 +218,6 @@ program
  		//console.table(['ID', 'CWD', 'CMD'],ret);
  		//console.log(ret);
  		//t.push(ret); 
- 		console.log(t.toString());
  	});
 
 
@@ -193,17 +225,28 @@ program
 	.command('pid <process_id>')
 	.action(function(s){
 		var sock_file = path.join(project_dir, s, "s.sock");
-		create_client(sock_file, 'pid', true, function(d){
+		create_client(sock_file, 'pid', true, function(e,d){
 			console.log(d);
 		});
 	});
 
 
 program
+	.command('uptime <process_id>')
+	.action(function(s){
+		var sock_file = path.join(project_dir, s, "s.sock");
+		create_client(sock_file, 'uptime', true, function(e,d){
+			console.log(d);
+		});
+	});
+
+
+
+program
 	.command('kill <process_id>')
 	.action(function(s){
 		var sock_file = path.join(project_dir, s, "s.sock");
-		create_client(sock_file, 'kill', true, function(d){
+		create_client(sock_file, 'kill', true, function(e,d){
 			console.log(d);
 		});
 	});
@@ -216,7 +259,7 @@ program
 		client.connect({path: sock_file});
 		client.on('data' ,function(data) {console.log(""+data);});
 		client.write(JSON.stringify({ping:true})); */
-		create_client(sock_file, 'ping', true, function(d){
+		create_client(sock_file, 'ping', true, function(e,d){
 			console.log(d);
 		})
 	});
@@ -253,18 +296,17 @@ program
 	});
 
 //put the listen before the send because we want to capture the first bytes of data
-function create_client(sock_file, key0, val0 ,cb)
+function create_client(sock_file, key0, val0 , cb )
 {
 	var client = new nssocket.NsSocket();
 	client.on('error', function(err) {
-		console.log("Can't attach to this process: "+err.code);
-		console.log(err);
-		process.exit();
+		cb(err, "Can't attach to this process, maybe it has finished?");
+		//console.log(err);
 	});
 
 	client.connect(sock_file);
 	client.data( key0 ,function(data){
-		cb(data);
+		cb(null,data);
 		client.destroy();
 	});
 	client.send(key0,val0); //invoke the request AFTER the listener

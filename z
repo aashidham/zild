@@ -12,6 +12,10 @@ var colors = require('colors/safe');
 var request = require('request');
 var nssocket = require('nssocket');
 
+var pkg_file_name = path.join(__dirname,"package.json");
+var version_raw = JSON.parse(fs.readFileSync(pkg_file_name)).version;
+var version = "v"+version_raw.replace(/[^a-zA-z0-9]/g,"");
+
 //var child = spawn('bash', ['-c', 'python multi.py'] , {detached: true, cwd: require('os').homedir(), stdio: 'ignore'});
 var curr_time = new Date().getTime();
 //var id0 = dockerNames.getRandomName() + "_" + curr_time;
@@ -23,7 +27,7 @@ var id1_ctr = 0;
 var project_dir;
 while(true)
 {
-	project_dir = path.join(root_dir,".zild", id1);
+	project_dir = path.join(root_dir,".zild", version, id1);
 	if(fs.existsSync(project_dir))
 	{
 		id1 = id1_base + "_" + id1_ctr;
@@ -49,7 +53,7 @@ var proc_mon_path = path.join(__dirname, "process_manager.js");
 
 var child;
 
-var global_config_path = path.join(root_dir,".zild", "globals.json");
+var global_config_path = path.join(root_dir,".zild", version, "globals.json");
 if(!fs.existsSync(global_config_path)) 
 {
 	console.log("It doesn't look like you have logged in yet.");
