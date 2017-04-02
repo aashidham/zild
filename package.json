@@ -1,8 +1,7 @@
 {
   "name": "zild",
   "version": "0.1.4",
-  "description": "",
-  "main": "index.js",
+  "description": "CLI for shell processes persistence",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -12,10 +11,16 @@
   },
   "keywords": [
     "process",
-    "management"
+    "management",
+    "sysadmin",
+    "tools"
   ],
   "author": "Aaditya Shidham",
   "license": "GPL-3.0",
+  "bin": {
+    "zild": "./zild_cli.js",
+    "z": "./z_cli.js"
+  },
   "bugs": {
     "url": "https://github.com/aashidham/zild/issues"
   },
