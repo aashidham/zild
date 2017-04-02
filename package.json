@@ -24,5 +24,18 @@
   "bugs": {
     "url": "https://github.com/aashidham/zild/issues"
   },
-  "homepage": "https://github.com/aashidham/zild#readme"
+  "homepage": "https://github.com/aashidham/zild#readme",
+  "dependencies": {
+    "child_pty": "^3.0.7",
+    "colors": "^1.1.2",
+    "commander": "^2.9.0",
+    "death": "^1.1.0",
+    "docker-names": "^1.0.3",
+    "easy-table": "^1.0.0",
+    "nssocket": "^0.6.0",
+    "prompt": "^1.0.0",
+    "request": "^2.81.0",
+    "utile": "^0.3.0",
+    "uuid": "^3.0.1"
+  }
 }
