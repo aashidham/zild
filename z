@@ -20,7 +20,7 @@ var version = "v"+version_raw.replace(/[^a-zA-z0-9]/g,"");
 var curr_time = new Date().getTime();
 //var id0 = dockerNames.getRandomName() + "_" + curr_time;
 var bash_cmd = process.argv.slice(2).join(" ");
-var id1 = bash_cmd.replace(/[^a-zA-z0-9]/g,"");
+var id1 = bash_cmd.replace(/[^a-zA-z0-9]/g,"").substr(0,20);
 if(!id1) id1 = dockerNames.getRandomName();
 var id1_base = id1;
 var id1_ctr = 0;
@@ -106,8 +106,6 @@ var setup_and_go = function()
 	if(process.env.ZILD_IMMEDIATE_DETACH) {
 		console.log(colors.green("[['"+project_config.bash_cmd+"' (PID: "+(parseInt(child.pid)+1)+") in progress. It has zild id '"+project_config.id0+"'. Run 'zild attach "+project_config.id0+"' to reattach to it.]]"));
 		process.exit();
-	} else {
-		console.log(colors.green("[['"+project_config.bash_cmd+"' (PID: "+(parseInt(child.pid)+1)+") in progress. It has zild id '"+project_config.id0+"'. Press any key to detach.]]"));
 	}
 
 	
@@ -145,7 +143,9 @@ var setup_and_go = function()
 
 if(!process.env.ZILD_IMMEDIATE_DETACH) {
 	var client = new nssocket.NsSocket();
-	client.connect(sock_file);
+	client.connect(sock_file, function(){
+		console.log(colors.green("[['"+project_config.bash_cmd+"' (PID: "+(parseInt(child.pid)+1)+") in progress. It has zild id '"+project_config.id0+"'. Press any key to detach.]]"));
+	});
 	client.on('error', function(err) {
 		//console.log("caught "+err);
 		client.connect(sock_file);

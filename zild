@@ -86,20 +86,24 @@ program
 		prompt.get([{
     		name: 'username',
     		required: true,
-    		description: colors.white('username')
+    		description: colors.white('username (8+ letters)')
   		}, { 
   			name: 'password',
     		hidden: true,
-    		description: colors.white('password'),
+    		description: colors.white('password (9+ letters)'),
     		required: true
   		}, {
   			name: 'password2',
   			hidden: true, 
   			description: colors.white('password (repeat)'),
   			required: true
+  		}, {
+  			name: 'email',
+  			description: colors.white('email'),
+  			required: true
   		}], function (err, result) {
 			  request.post( 'https://zild.io/register', 
-			  	{timeout: 1000, json: {username: result.username, pw1: result.password, pw2: result.password2}},
+			  	{timeout: 1000, json: {username: result.username, pw1: result.password, pw2: result.password2, email: result.email}},
 			  	function(error, response, body)
 			  	{
 			  		if(!error){
@@ -185,7 +189,7 @@ program
 			  //t.cell('CMD', colors.red("["+product.cwd+"]$ "+ product.bash_cmd));
 			  t.cell('shell command', colors.red(product.bash_cmd));
 			  //(new Date(product.start_time)).toLocaleString()
-			  t.cell('start time', (new Date(product.start_time)).toLocaleString());
+			  t.cell('start time ▼', (new Date(product.start_time)).toLocaleString());
 			  //t.newRow();
 			  //writeRow(products);
 			  var sock_file = path.join(project_dir, product.id0, "s.sock");
@@ -278,12 +282,15 @@ program
 		var sock_file = path.join(project_dir, s, "s.sock");
 
 		var client = new nssocket.NsSocket();
-		client.connect(sock_file);
+		client.connect(sock_file, function(){
+			console.log(colors.green("[[Reattached to "+s+"! Press any key to detach again.]]"));
+		});
 		client.on('error', function(err) {
 			//console.log("caught "+err);
 			console.log("Can't attach to this process: "+err.code);
 			process.exit();
 		});
+
 		client.data('log' ,function(data) {
 			process.stdout.write(data);
 		});
@@ -291,6 +298,7 @@ program
 		process.stdin.setRawMode(true);
 		process.stdin.resume();
 		process.stdin.on('data', function(chunk) {
+			console.log(colors.green("\r\n[[ ✓ Detached from "+s+".]]"));
 			process.exit(0);
 		});
 	});
