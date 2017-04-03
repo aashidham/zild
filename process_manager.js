@@ -1,9 +1,3 @@
-//var id0 = process.argv[2];
-
-//var root_dir = require('os').homedir();
-
-//var pid_path = 
-
 var fs = require('fs');
 var net = require('net');
 var spawn = require('child_process').spawn;
@@ -138,32 +132,21 @@ var server = nssocket.createServer(function(sock) {
 
 
 	post_events.on("print", function(d){
-		//console.log("about to send out "+d.length);
 		d_curr = d;
 		if(sock.connected)
 		{
 			sock.send('log', d);	
 		}
-		//if(sock_log && sock.writable) sock.write(JSON.stringify({data:d}));
-		
-		//TODO:
-		//putting sock.on('error') here is bad because it adds a listener each time data is called (memory leak)
 	});		
 
-
-	//sock_arr.push(sock);
 }).listen(sock_file);
 
 
 fs.watch(project_dir, (eventType, filename) => { 
 	if(filename === "s.sock"){
-		//console.log([eventType, filename]);
 		if(!fs.existsSync(sock_file)) {
 			graceful_close("from socket file removal");
 		}
-		//server.close(function(e){console.log(e);}); 
-		// above releases an error because server already closed when this is invoked from server.close(), but this is still needed when file 
-		// is manually removed
 		
 	}
 });
@@ -176,21 +159,9 @@ var print_out = function(data)
 {
 	var data = ""+data;
 	post_events.emit("print", data);
+	fs.appendFileSync(project_log_path, data);
 	//log to STDOUT will be ignored by z, but if this is run directly, can be viewed for debugging purposes
 	//console.log(data);
-	
-
-	/*
-	for (var i = 0, len = sock_arr.length; i < len; i++) {
-		var sock0 = sock_arr[i];
-		//TODO: figure out if I need sock0.writable if I can catch the error in the if block, uncomment epipe.d for this
-		if(sock0 && sock0.writable)
-		{
-			sock0.write(data);
-			sock0.on('error', function(e) {console.log(e); fs.writeFileSync("epipe.d", e);})
-		}		
-	}
-	*/
 }
 
 
@@ -209,7 +180,6 @@ var write3_common = function(data, stderr)
 			//console.log("shell_data result");
 			//console.log(b);
 		});
-	fs.appendFileSync(project_log_path, data);
 	print_out(data);
 }
 
@@ -228,12 +198,8 @@ var add_cb = function(proc_curr)
 	project_config.pid = proc_curr.pid;
 	project_config.process_id = uuid();
 
-	//TODO: figure out why setEncoding becomes undefined inside spawn2
-	//proc_curr.stdout.setEncoding('utf8');
-	//proc_curr.stderr.setEncoding('utf8');
-	//TODO: figure out why these arent printing out
-	print_out(proc_curr.pty.columns); //80
-	print_out(proc_curr.pty.rows); //24
+	console.log(proc_curr.pty.columns); //80
+	console.log(proc_curr.pty.rows); //24
 
 	console.log("start_process project_config");
 	console.log(project_config);

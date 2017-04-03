@@ -18,7 +18,6 @@ var version = "v"+version_raw.replace(/[^a-zA-z0-9]/g,"");
 
 //var child = spawn('bash', ['-c', 'python multi.py'] , {detached: true, cwd: require('os').homedir(), stdio: 'ignore'});
 var curr_time = new Date().getTime();
-//var id0 = dockerNames.getRandomName() + "_" + curr_time;
 var bash_cmd = process.argv.slice(2).join(" ");
 var id1 = bash_cmd.replace(/[^a-zA-z0-9]/g,"").substr(0,20);
 if(!id1) id1 = dockerNames.getRandomName();
@@ -40,14 +39,8 @@ while(true)
 	}
 }
 
-//var project_dir = path.join(root_dir,".zild", id0);
-//console.log(process.execArgv);
-//console.log(process.argv);
-//console.log(process.version);
-
 var project_config = {bash_cmd: bash_cmd, cwd: process.cwd(), id0: id1, start_time: curr_time};
 var sock_file = path.join(project_dir, "s.sock");
-//console.log(project_config);
 
 var proc_mon_path = path.join(__dirname, "process_manager.js");
 
@@ -85,10 +78,6 @@ function(e,r,b){
 
 });
 
-
-
-//child.stdout.on('data', console.log);
-//child.stderr.on('data', console.log);
 
 var setup_and_go = function()
 {
@@ -147,7 +136,6 @@ if(!process.env.ZILD_IMMEDIATE_DETACH) {
 		console.log(colors.green("[['"+project_config.bash_cmd+"' (PID: "+(parseInt(child.pid)+1)+") in progress. It has zild id '"+project_config.id0+"'. Press any key to detach.]]"));
 	});
 	client.on('error', function(err) {
-		//console.log("caught "+err);
 		client.connect(sock_file);
 	});
 	client.data('log' ,function(data) {
