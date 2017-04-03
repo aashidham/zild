@@ -16,7 +16,6 @@ var pkg_file_name = path.join(__dirname,"package.json");
 var version_raw = JSON.parse(fs.readFileSync(pkg_file_name)).version;
 var version = "v"+version_raw.replace(/[^a-zA-z0-9]/g,"");
 
-//var child = spawn('bash', ['-c', 'python multi.py'] , {detached: true, cwd: require('os').homedir(), stdio: 'ignore'});
 var curr_time = new Date().getTime();
 var bash_cmd = process.argv.slice(2).join(" ");
 var id1 = bash_cmd.replace(/[^a-zA-z0-9]/g,"").substr(0,20);
@@ -87,7 +86,6 @@ var setup_and_go = function()
 	var errFD = fs.openSync(proc_mon_log, 'a');
 
 	var invok = 'node '+ proc_mon_path + ' ' + project_config.id0;
-	//console.log("about to call "+ invok );
 	child = spawn('bash', ['-c', invok], {detached: true, stdio: ['ignore', outFD, errFD]});
 	child.unref();
 
@@ -123,7 +121,6 @@ var setup_and_go = function()
 	process.stdin.setRawMode(true);
 	process.stdin.resume();
 	process.stdin.on('data', function(chunk) {
-		//child.disconnect();
 		console.log(colors.green("\r\n[[ ✓ Process "+(parseInt(child.pid)+1)+" detached! Run 'zild attach "+project_config.id0+"' to reattach to it.]]"));
 		process.exit(0);
 	});
