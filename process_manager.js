@@ -21,6 +21,12 @@ var version = "v"+version_raw.replace(/[^a-zA-z0-9]/g,"");
 
 var project_dir = path.join(root_dir , ".zild" , version , id0);
 
+var call_zild_api = function(str, data, cb)
+{
+	var port_no = 8000;
+	request.post( "https://zild.io:"+port_no+"/"+str, data, cb );
+}
+
 function sToTime(duration_s) {
 		var duration = duration_s * 1000;
         var milliseconds = parseInt((duration%1000)/100)
@@ -89,7 +95,7 @@ function events_intersect(ev1, ev2, ee, f0)
 
 events_intersect("start_done", "process_closed", post_events, function(){
 	console.log("about to call stop_process");
-	request.post( 'https://zild.io/stop_process', {json: {token: project_config.token, close_code: close_code, process_id: project_config.process_id}}, 
+	call_zild_api( 'stop_process', {json: {token: project_config.token, close_code: close_code, process_id: project_config.process_id}}, 
 		function(e,r,b){
 			console.log("from stop_process result");
 			if(e) {console.log(e); }
@@ -174,7 +180,7 @@ var write3_common = function(data, stderr)
 	send_obj.data_chunk = data_lines_count;
 	send_obj.stderr = stderr;
 	//console.log(send_obj);
-	request.post( 'https://zild.io/shell_data', {json: send_obj}, 
+	call_zild_api( 'shell_data', {json: send_obj}, 
 		function(e,r,b){
 			if(e) { console.log("shell_data error"); console.log(e); }
 			//console.log("shell_data result");
@@ -203,7 +209,7 @@ var add_cb = function(proc_curr)
 
 	console.log("start_process project_config");
 	console.log(project_config);
-	request.post( 'https://zild.io/start_process', {json: project_config}, 
+	call_zild_api( 'start_process', {json: project_config}, 
 		function(e,r,b){
 			if(e) {console.log(e); }
 			console.log("start_process result");

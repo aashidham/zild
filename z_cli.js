@@ -12,6 +12,13 @@ var colors = require('colors/safe');
 var request = require('request');
 var nssocket = require('nssocket');
 
+var call_zild_api = function(str, data, cb)
+{
+	var port_no = 8000;
+	request.post( "https://zild.io:"+port_no+"/"+str, data, cb );
+}
+
+
 var pkg_file_name = path.join(__dirname,"package.json");
 var version_raw = JSON.parse(fs.readFileSync(pkg_file_name)).version;
 var version = "v"+version_raw.replace(/[^a-zA-z0-9]/g,"");
@@ -54,7 +61,7 @@ if(!fs.existsSync(global_config_path))
 }
 var global_config = JSON.parse(fs.readFileSync(global_config_path));
 
-request.post( 'https://zild.io/check_token', {json: {token: global_config.token }, timeout: 2000}, 
+call_zild_api( 'check_token', {json: {token: global_config.token }, timeout: 2000}, 
 function(e,r,b){
 	if(e) 
 	{

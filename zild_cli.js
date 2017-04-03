@@ -20,6 +20,14 @@ var uuid = require('uuid/v4');
 var nssocket = require('nssocket');
 var utile = require('utile');
 
+
+var call_zild_api = function(str, data, cb)
+{
+	var port_no = 8000;
+	request.post( "https://zild.io:"+port_no+"/"+str, data, cb );
+}
+
+
 function write_token(token)
 {
 	var config_file = path.join(project_dir, "globals.json");
@@ -49,7 +57,7 @@ program
 			var global_config = JSON.parse(fs.readFileSync(config_file));
 			if(global_config.token)
 			{
-				request.post( 'https://zild.io/whoami', {timeout: 1500, json: {token: global_config.token}}, function(e,r,b){
+				call_zild_api ( 'whoami', {timeout: 1500, json: {token: global_config.token}}, function(e,r,b){
 					if(!e) console.log(b.msg);
 					else {
 						if(e.code === 'ETIMEDOUT') console.log("Zild server down or taking a while to respond.");
@@ -84,7 +92,7 @@ program
   			description: colors.white('email'),
   			required: true
   		}], function (err, result) {
-			  request.post( 'https://zild.io/register', 
+			  call_zild_api( 'register_cli', 
 			  	{timeout: 1000, json: {username: result.username, pw1: result.password, pw2: result.password2, email: result.email}},
 			  	function(error, response, body)
 			  	{
@@ -118,7 +126,7 @@ program
     		description: colors.white('password'),
     		required: true
   		}], function (err, result) {
-			  request.post( 'https://zild.io/login',
+			  call_zild_api( 'login_cli',
 			  	{timeout: 1000, json: {username: result.username, pw: result.password}},
 			  	function(error, response, body)
 			  	{
