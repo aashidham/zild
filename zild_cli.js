@@ -193,7 +193,7 @@ program
 
 
 program
-	.command('pid <process_id>')
+	.command('pid <zild_id>')
 	.action(function(s){
 		var sock_file = path.join(project_dir, s, "s.sock");
 		create_client(sock_file, 'pid', true, function(e,d){
@@ -203,7 +203,7 @@ program
 
 
 program
-	.command('uptime <process_id>')
+	.command('uptime <zild_id>')
 	.action(function(s){
 		var sock_file = path.join(project_dir, s, "s.sock");
 		create_client(sock_file, 'uptime', true, function(e,d){
@@ -214,7 +214,7 @@ program
 
 
 program
-	.command('kill <process_id>')
+	.command('kill <zild_id>')
 	.action(function(s){
 		var sock_file = path.join(project_dir, s, "s.sock");
 		create_client(sock_file, 'kill', true, function(e,d){
@@ -223,7 +223,7 @@ program
 	});
 
 program
-	.command('ping <process_id>')
+	.command('ping <zild_id>')
 	.action(function(s){
 		var sock_file = path.join(project_dir, s, "s.sock");
 		create_client(sock_file, 'ping', true, function(e,d){
@@ -232,14 +232,14 @@ program
 	});
 
 program
-	.command('log <process_id>')
+	.command('log <zild_id>')
 	.action(function(s){
 		var log_file = path.join(project_dir, s, "current.log");
 		fs.createReadStream(log_file).pipe(process.stdout);
 	});
 
 program
-	.command('attach <process_id>')
+	.command('attach <zild_id>')
 	.action(function(s){
 		var sock_file = path.join(project_dir, s, "s.sock");
 
