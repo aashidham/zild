@@ -1,6 +1,6 @@
 {
   "name": "zild",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "CLI for shell processes persistence",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
