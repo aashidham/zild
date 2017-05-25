@@ -149,6 +149,7 @@ program
  	.option("-a,  --all", "Include closed / stopped processes in list")
  	.action(function(is_all){
  		var t = new Table
+ 		//TODO: check that fs.existsSync(project_dir) here
  		var ret = fs.readdirSync(project_dir)
  		.filter(file => fs.existsSync(path.join(project_dir, file, "config.json")))
  		.sort(function compare(a, b){

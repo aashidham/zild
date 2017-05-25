@@ -38,7 +38,7 @@ function sToTime(duration_s) {
         minutes = (minutes < 10) ? "0" + minutes : minutes;
         seconds = (seconds < 10) ? "0" + seconds : seconds;
 
-        return hours + "h:" + minutes + "m:" + seconds + "." + milliseconds;
+        return hours + "h:" + minutes + "m:" + seconds + "." + milliseconds+"s";
     }
 
 function string_is_json(s)
@@ -59,9 +59,11 @@ if(!fs.existsSync(project_config_path))
 var project_config = JSON.parse(fs.readFileSync(project_config_path));
 var global_config = JSON.parse(fs.readFileSync(global_config_path));
 
-//truncate file if already exists
-var fd_log = fs.openSync(project_log_path,'w');
-fs.closeSync(fd_log);
+//https://nodejs.org/api/fs.html#fs_fs_createwritestream_path_options
+//		'w' flag is default (fopen flags)
+//		http://www.manpagez.com/man/3/fopen/ OR http://stackoverflow.com/a/1466036
+//			"Truncate file to zero length or create text file for writing."
+var fstream_log = fs.createWriteStream(project_log_path);
 
 project_config.token = global_config.token;
 project_config.hostname = global_config.hostname;
@@ -165,7 +167,7 @@ var print_out = function(data)
 {
 	var data = ""+data;
 	post_events.emit("print", data);
-	fs.appendFileSync(project_log_path, data);
+	fstream_log.write(data);
 	//log to STDOUT will be ignored by z, but if this is run directly, can be viewed for debugging purposes
 	//console.log(data);
 }
