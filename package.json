@@ -24,7 +24,7 @@
   "bugs": {
     "url": "https://github.com/aashidham/zild/issues"
   },
-  "homepage": "https://github.com/aashidham/zild#readme",
+  "homepage": "https://zild.io",
   "dependencies": {
     "child_pty": "^3.0.7",
     "colors": "^1.1.2",

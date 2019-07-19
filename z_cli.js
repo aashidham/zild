@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+
 var spawn = require('child_process').spawn;
 var net = require('net');
 var fs = require('fs');
@@ -66,6 +67,7 @@ function(e,r,b){
 	if(e) 
 	{
 		console.log("Error with checking token. Zild service may be down, or your token may have expired.");
+        console.log(e);
 		process.exit();
 	}
 	if(b.err)

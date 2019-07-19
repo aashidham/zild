@@ -7,6 +7,7 @@ var post_events = new events();
 
 var root_dir = process.env.ZILD_ROOT || require('os').homedir();
 
+
 var spawn2 = require('child_pty').spawn;
 var ON_DEATH = require('death');
 var request = require('request');

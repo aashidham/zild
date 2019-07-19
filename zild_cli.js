@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+
 var path = require('path');
 var fs = require('fs');
 var root_dir = process.env.ZILD_ROOT || require('os').homedir();
